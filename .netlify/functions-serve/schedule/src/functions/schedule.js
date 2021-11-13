@@ -21,7 +21,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
 // functions/schedule.ts
 var MINUTES_IN_A_DAY = 60 * 24;
 var findScheduleWithinOneHour = (schedules, timestamp) => {
-  const now = new Date(timestamp * 1e3);
+  const now = new Date(timestamp);
   const minutes = now.getHours() * 60 + now.getMinutes();
   const day = now.getDay();
   const RANGE = 60;
@@ -39,7 +39,6 @@ exports.handler = async (event = {}) => {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
   const body = JSON.parse(event.body);
-  console.log(body);
   const schedule = body.schedule;
   const timestamp = body.timestamp;
   return {

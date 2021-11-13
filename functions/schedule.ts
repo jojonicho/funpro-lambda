@@ -3,7 +3,7 @@ const MINUTES_IN_A_DAY = 60 * 24;
 // 19.00 -> 60*19
 
 const findScheduleWithinOneHour = (schedules, timestamp) => {
-  const now = new Date(timestamp * 1000);
+  const now = new Date(timestamp);
   const minutes = now.getHours() * 60 + now.getMinutes();
   const day = now.getDay();
   const RANGE = 60; // 1 hour range
@@ -30,7 +30,6 @@ exports.handler = async (event: any = {}): Promise<any> => {
   }
   // get post body
   const body = JSON.parse(event.body);
-  console.log(body);
   const schedule = body.schedule;
   const timestamp = body.timestamp;
 
