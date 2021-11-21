@@ -1,3 +1,5 @@
+import { headers } from "../config/headers";
+
 const MINUTES_IN_A_DAY = 60 * 24;
 // 11.40 -> 60*11 + 40
 // 19.00 -> 60*19
@@ -30,18 +32,13 @@ exports.handler = async (event: any = {}): Promise<any> => {
   }
   // get post body
   const body = JSON.parse(event.body);
-  const schedule = body.schedule;
-  const timestamp = body.timestamp;
+  const { schedule, timestamp } = body;
 
   return {
     statusCode: 200,
     body: JSON.stringify({
       message: findScheduleWithinOneHour(schedule, timestamp),
     }),
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Origin, Content-Type, X-Auth-Token",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTION",
-    },
+    headers,
   };
 };

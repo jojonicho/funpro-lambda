@@ -665,20 +665,21 @@ var require_xhr = __commonJS({
   }
 });
 
-// ../../../../node_modules/ms/index.js
+// node_modules/ms/index.js
 var require_ms = __commonJS({
-  "../../../../node_modules/ms/index.js"(exports2, module2) {
+  "node_modules/ms/index.js"(exports2, module2) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
     var d = h * 24;
+    var w = d * 7;
     var y = d * 365.25;
     module2.exports = function(val, options) {
       options = options || {};
       var type = typeof val;
       if (type === "string" && val.length > 0) {
         return parse(val);
-      } else if (type === "number" && isNaN(val) === false) {
+      } else if (type === "number" && isFinite(val)) {
         return options.long ? fmtLong(val) : fmtShort(val);
       }
       throw new Error("val is not a non-empty string or a valid number. val=" + JSON.stringify(val));
@@ -688,7 +689,7 @@ var require_ms = __commonJS({
       if (str.length > 100) {
         return;
       }
-      var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(str);
+      var match = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(str);
       if (!match) {
         return;
       }
@@ -701,6 +702,10 @@ var require_ms = __commonJS({
         case "yr":
         case "y":
           return n * y;
+        case "weeks":
+        case "week":
+        case "w":
+          return n * w;
         case "days":
         case "day":
         case "d":
@@ -734,174 +739,224 @@ var require_ms = __commonJS({
       }
     }
     function fmtShort(ms) {
-      if (ms >= d) {
+      var msAbs = Math.abs(ms);
+      if (msAbs >= d) {
         return Math.round(ms / d) + "d";
       }
-      if (ms >= h) {
+      if (msAbs >= h) {
         return Math.round(ms / h) + "h";
       }
-      if (ms >= m) {
+      if (msAbs >= m) {
         return Math.round(ms / m) + "m";
       }
-      if (ms >= s) {
+      if (msAbs >= s) {
         return Math.round(ms / s) + "s";
       }
       return ms + "ms";
     }
     function fmtLong(ms) {
-      return plural(ms, d, "day") || plural(ms, h, "hour") || plural(ms, m, "minute") || plural(ms, s, "second") || ms + " ms";
+      var msAbs = Math.abs(ms);
+      if (msAbs >= d) {
+        return plural(ms, msAbs, d, "day");
+      }
+      if (msAbs >= h) {
+        return plural(ms, msAbs, h, "hour");
+      }
+      if (msAbs >= m) {
+        return plural(ms, msAbs, m, "minute");
+      }
+      if (msAbs >= s) {
+        return plural(ms, msAbs, s, "second");
+      }
+      return ms + " ms";
     }
-    function plural(ms, n, name) {
-      if (ms < n) {
-        return;
-      }
-      if (ms < n * 1.5) {
-        return Math.floor(ms / n) + " " + name;
-      }
-      return Math.ceil(ms / n) + " " + name + "s";
+    function plural(ms, msAbs, n, name) {
+      var isPlural = msAbs >= n * 1.5;
+      return Math.round(ms / n) + " " + name + (isPlural ? "s" : "");
     }
   }
 });
 
-// ../../../../node_modules/debug/src/debug.js
-var require_debug = __commonJS({
-  "../../../../node_modules/debug/src/debug.js"(exports2, module2) {
-    exports2 = module2.exports = createDebug.debug = createDebug["default"] = createDebug;
-    exports2.coerce = coerce;
-    exports2.disable = disable;
-    exports2.enable = enable;
-    exports2.enabled = enabled;
-    exports2.humanize = require_ms();
-    exports2.instances = [];
-    exports2.names = [];
-    exports2.skips = [];
-    exports2.formatters = {};
-    function selectColor(namespace) {
-      var hash = 0, i;
-      for (i in namespace) {
-        hash = (hash << 5) - hash + namespace.charCodeAt(i);
-        hash |= 0;
+// node_modules/debug/src/common.js
+var require_common = __commonJS({
+  "node_modules/debug/src/common.js"(exports2, module2) {
+    function setup(env) {
+      createDebug.debug = createDebug;
+      createDebug.default = createDebug;
+      createDebug.coerce = coerce;
+      createDebug.disable = disable;
+      createDebug.enable = enable;
+      createDebug.enabled = enabled;
+      createDebug.humanize = require_ms();
+      createDebug.destroy = destroy;
+      Object.keys(env).forEach((key) => {
+        createDebug[key] = env[key];
+      });
+      createDebug.names = [];
+      createDebug.skips = [];
+      createDebug.formatters = {};
+      function selectColor(namespace) {
+        let hash = 0;
+        for (let i = 0; i < namespace.length; i++) {
+          hash = (hash << 5) - hash + namespace.charCodeAt(i);
+          hash |= 0;
+        }
+        return createDebug.colors[Math.abs(hash) % createDebug.colors.length];
       }
-      return exports2.colors[Math.abs(hash) % exports2.colors.length];
-    }
-    function createDebug(namespace) {
-      var prevTime;
-      function debug() {
-        if (!debug.enabled)
-          return;
-        var self = debug;
-        var curr = +new Date();
-        var ms = curr - (prevTime || curr);
-        self.diff = ms;
-        self.prev = prevTime;
-        self.curr = curr;
-        prevTime = curr;
-        var args = new Array(arguments.length);
-        for (var i = 0; i < args.length; i++) {
-          args[i] = arguments[i];
-        }
-        args[0] = exports2.coerce(args[0]);
-        if (typeof args[0] !== "string") {
-          args.unshift("%O");
-        }
-        var index = 0;
-        args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
-          if (match === "%%")
-            return match;
-          index++;
-          var formatter = exports2.formatters[format];
-          if (typeof formatter === "function") {
-            var val = args[index];
-            match = formatter.call(self, val);
-            args.splice(index, 1);
-            index--;
+      createDebug.selectColor = selectColor;
+      function createDebug(namespace) {
+        let prevTime;
+        let enableOverride = null;
+        let namespacesCache;
+        let enabledCache;
+        function debug(...args) {
+          if (!debug.enabled) {
+            return;
           }
-          return match;
+          const self = debug;
+          const curr = Number(new Date());
+          const ms = curr - (prevTime || curr);
+          self.diff = ms;
+          self.prev = prevTime;
+          self.curr = curr;
+          prevTime = curr;
+          args[0] = createDebug.coerce(args[0]);
+          if (typeof args[0] !== "string") {
+            args.unshift("%O");
+          }
+          let index = 0;
+          args[0] = args[0].replace(/%([a-zA-Z%])/g, (match, format) => {
+            if (match === "%%") {
+              return "%";
+            }
+            index++;
+            const formatter = createDebug.formatters[format];
+            if (typeof formatter === "function") {
+              const val = args[index];
+              match = formatter.call(self, val);
+              args.splice(index, 1);
+              index--;
+            }
+            return match;
+          });
+          createDebug.formatArgs.call(self, args);
+          const logFn = self.log || createDebug.log;
+          logFn.apply(self, args);
+        }
+        debug.namespace = namespace;
+        debug.useColors = createDebug.useColors();
+        debug.color = createDebug.selectColor(namespace);
+        debug.extend = extend;
+        debug.destroy = createDebug.destroy;
+        Object.defineProperty(debug, "enabled", {
+          enumerable: true,
+          configurable: false,
+          get: () => {
+            if (enableOverride !== null) {
+              return enableOverride;
+            }
+            if (namespacesCache !== createDebug.namespaces) {
+              namespacesCache = createDebug.namespaces;
+              enabledCache = createDebug.enabled(namespace);
+            }
+            return enabledCache;
+          },
+          set: (v) => {
+            enableOverride = v;
+          }
         });
-        exports2.formatArgs.call(self, args);
-        var logFn = debug.log || exports2.log || console.log.bind(console);
-        logFn.apply(self, args);
+        if (typeof createDebug.init === "function") {
+          createDebug.init(debug);
+        }
+        return debug;
       }
-      debug.namespace = namespace;
-      debug.enabled = exports2.enabled(namespace);
-      debug.useColors = exports2.useColors();
-      debug.color = selectColor(namespace);
-      debug.destroy = destroy;
-      if (typeof exports2.init === "function") {
-        exports2.init(debug);
+      function extend(namespace, delimiter) {
+        const newDebug = createDebug(this.namespace + (typeof delimiter === "undefined" ? ":" : delimiter) + namespace);
+        newDebug.log = this.log;
+        return newDebug;
       }
-      exports2.instances.push(debug);
-      return debug;
-    }
-    function destroy() {
-      var index = exports2.instances.indexOf(this);
-      if (index !== -1) {
-        exports2.instances.splice(index, 1);
-        return true;
-      } else {
-        return false;
-      }
-    }
-    function enable(namespaces) {
-      exports2.save(namespaces);
-      exports2.names = [];
-      exports2.skips = [];
-      var i;
-      var split = (typeof namespaces === "string" ? namespaces : "").split(/[\s,]+/);
-      var len = split.length;
-      for (i = 0; i < len; i++) {
-        if (!split[i])
-          continue;
-        namespaces = split[i].replace(/\*/g, ".*?");
-        if (namespaces[0] === "-") {
-          exports2.skips.push(new RegExp("^" + namespaces.substr(1) + "$"));
-        } else {
-          exports2.names.push(new RegExp("^" + namespaces + "$"));
+      function enable(namespaces) {
+        createDebug.save(namespaces);
+        createDebug.namespaces = namespaces;
+        createDebug.names = [];
+        createDebug.skips = [];
+        let i;
+        const split = (typeof namespaces === "string" ? namespaces : "").split(/[\s,]+/);
+        const len = split.length;
+        for (i = 0; i < len; i++) {
+          if (!split[i]) {
+            continue;
+          }
+          namespaces = split[i].replace(/\*/g, ".*?");
+          if (namespaces[0] === "-") {
+            createDebug.skips.push(new RegExp("^" + namespaces.substr(1) + "$"));
+          } else {
+            createDebug.names.push(new RegExp("^" + namespaces + "$"));
+          }
         }
       }
-      for (i = 0; i < exports2.instances.length; i++) {
-        var instance = exports2.instances[i];
-        instance.enabled = exports2.enabled(instance.namespace);
+      function disable() {
+        const namespaces = [
+          ...createDebug.names.map(toNamespace),
+          ...createDebug.skips.map(toNamespace).map((namespace) => "-" + namespace)
+        ].join(",");
+        createDebug.enable("");
+        return namespaces;
       }
-    }
-    function disable() {
-      exports2.enable("");
-    }
-    function enabled(name) {
-      if (name[name.length - 1] === "*") {
-        return true;
-      }
-      var i, len;
-      for (i = 0, len = exports2.skips.length; i < len; i++) {
-        if (exports2.skips[i].test(name)) {
-          return false;
-        }
-      }
-      for (i = 0, len = exports2.names.length; i < len; i++) {
-        if (exports2.names[i].test(name)) {
+      function enabled(name) {
+        if (name[name.length - 1] === "*") {
           return true;
         }
+        let i;
+        let len;
+        for (i = 0, len = createDebug.skips.length; i < len; i++) {
+          if (createDebug.skips[i].test(name)) {
+            return false;
+          }
+        }
+        for (i = 0, len = createDebug.names.length; i < len; i++) {
+          if (createDebug.names[i].test(name)) {
+            return true;
+          }
+        }
+        return false;
       }
-      return false;
+      function toNamespace(regexp) {
+        return regexp.toString().substring(2, regexp.toString().length - 2).replace(/\.\*\?$/, "*");
+      }
+      function coerce(val) {
+        if (val instanceof Error) {
+          return val.stack || val.message;
+        }
+        return val;
+      }
+      function destroy() {
+        console.warn("Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.");
+      }
+      createDebug.enable(createDebug.load());
+      return createDebug;
     }
-    function coerce(val) {
-      if (val instanceof Error)
-        return val.stack || val.message;
-      return val;
-    }
+    module2.exports = setup;
   }
 });
 
-// ../../../../node_modules/debug/src/browser.js
+// node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "../../../../node_modules/debug/src/browser.js"(exports2, module2) {
-    exports2 = module2.exports = require_debug();
-    exports2.log = log;
+  "node_modules/debug/src/browser.js"(exports2, module2) {
     exports2.formatArgs = formatArgs;
     exports2.save = save;
     exports2.load = load;
     exports2.useColors = useColors;
-    exports2.storage = typeof chrome != "undefined" && typeof chrome.storage != "undefined" ? chrome.storage.local : localstorage();
+    exports2.storage = localstorage();
+    exports2.destroy = (() => {
+      let warned = false;
+      return () => {
+        if (!warned) {
+          warned = true;
+          console.warn("Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.");
+        }
+      };
+    })();
     exports2.colors = [
       "#0000CC",
       "#0000FF",
@@ -981,7 +1036,7 @@ var require_browser = __commonJS({
       "#FFCC33"
     ];
     function useColors() {
-      if (typeof window !== "undefined" && window.process && window.process.type === "renderer") {
+      if (typeof window !== "undefined" && window.process && (window.process.type === "renderer" || window.process.__nwjs)) {
         return true;
       }
       if (typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/(edge|trident)\/(\d+)/)) {
@@ -989,25 +1044,19 @@ var require_browser = __commonJS({
       }
       return typeof document !== "undefined" && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance || typeof window !== "undefined" && window.console && (window.console.firebug || window.console.exception && window.console.table) || typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31 || typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
     }
-    exports2.formatters.j = function(v) {
-      try {
-        return JSON.stringify(v);
-      } catch (err) {
-        return "[UnexpectedJSONParseError]: " + err.message;
-      }
-    };
     function formatArgs(args) {
-      var useColors2 = this.useColors;
-      args[0] = (useColors2 ? "%c" : "") + this.namespace + (useColors2 ? " %c" : " ") + args[0] + (useColors2 ? "%c " : " ") + "+" + exports2.humanize(this.diff);
-      if (!useColors2)
+      args[0] = (this.useColors ? "%c" : "") + this.namespace + (this.useColors ? " %c" : " ") + args[0] + (this.useColors ? "%c " : " ") + "+" + module2.exports.humanize(this.diff);
+      if (!this.useColors) {
         return;
-      var c = "color: " + this.color;
+      }
+      const c = "color: " + this.color;
       args.splice(1, 0, c, "color: inherit");
-      var index = 0;
-      var lastC = 0;
-      args[0].replace(/%[a-zA-Z%]/g, function(match) {
-        if (match === "%%")
+      let index = 0;
+      let lastC = 0;
+      args[0].replace(/%[a-zA-Z%]/g, (match) => {
+        if (match === "%%") {
           return;
+        }
         index++;
         if (match === "%c") {
           lastC = index;
@@ -1015,37 +1064,44 @@ var require_browser = __commonJS({
       });
       args.splice(lastC, 0, c);
     }
-    function log() {
-      return typeof console === "object" && console.log && Function.prototype.apply.call(console.log, console, arguments);
-    }
+    exports2.log = console.debug || console.log || (() => {
+    });
     function save(namespaces) {
       try {
-        if (namespaces == null) {
-          exports2.storage.removeItem("debug");
+        if (namespaces) {
+          exports2.storage.setItem("debug", namespaces);
         } else {
-          exports2.storage.debug = namespaces;
+          exports2.storage.removeItem("debug");
         }
-      } catch (e) {
+      } catch (error) {
       }
     }
     function load() {
-      var r;
+      let r;
       try {
-        r = exports2.storage.debug;
-      } catch (e) {
+        r = exports2.storage.getItem("debug");
+      } catch (error) {
       }
       if (!r && typeof process !== "undefined" && "env" in process) {
         r = process.env.DEBUG;
       }
       return r;
     }
-    exports2.enable(load());
     function localstorage() {
       try {
-        return window.localStorage;
-      } catch (e) {
+        return localStorage;
+      } catch (error) {
       }
     }
+    module2.exports = require_common()(exports2);
+    var { formatters } = module2.exports;
+    formatters.j = function(v) {
+      try {
+        return JSON.stringify(v);
+      } catch (error) {
+        return "[UnexpectedJSONParseError]: " + error.message;
+      }
+    };
   }
 });
 
@@ -1158,22 +1214,23 @@ var require_supports_color = __commonJS({
   }
 });
 
-// ../../../../node_modules/debug/src/node.js
+// node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "../../../../node_modules/debug/src/node.js"(exports2, module2) {
+  "node_modules/debug/src/node.js"(exports2, module2) {
     var tty = require("tty");
     var util = require("util");
-    exports2 = module2.exports = require_debug();
     exports2.init = init;
     exports2.log = log;
     exports2.formatArgs = formatArgs;
     exports2.save = save;
     exports2.load = load;
     exports2.useColors = useColors;
+    exports2.destroy = util.deprecate(() => {
+    }, "Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.");
     exports2.colors = [6, 2, 3, 4, 5, 1];
     try {
-      supportsColor = require_supports_color();
-      if (supportsColor && supportsColor.level >= 2) {
+      const supportsColor = require_supports_color();
+      if (supportsColor && (supportsColor.stderr || supportsColor).level >= 2) {
         exports2.colors = [
           20,
           21,
@@ -1253,49 +1310,38 @@ var require_node = __commonJS({
           221
         ];
       }
-    } catch (err) {
+    } catch (error) {
     }
-    var supportsColor;
-    exports2.inspectOpts = Object.keys(process.env).filter(function(key) {
+    exports2.inspectOpts = Object.keys(process.env).filter((key) => {
       return /^debug_/i.test(key);
-    }).reduce(function(obj, key) {
-      var prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, function(_, k) {
+    }).reduce((obj, key) => {
+      const prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, (_, k) => {
         return k.toUpperCase();
       });
-      var val = process.env[key];
-      if (/^(yes|on|true|enabled)$/i.test(val))
+      let val = process.env[key];
+      if (/^(yes|on|true|enabled)$/i.test(val)) {
         val = true;
-      else if (/^(no|off|false|disabled)$/i.test(val))
+      } else if (/^(no|off|false|disabled)$/i.test(val)) {
         val = false;
-      else if (val === "null")
+      } else if (val === "null") {
         val = null;
-      else
+      } else {
         val = Number(val);
+      }
       obj[prop] = val;
       return obj;
     }, {});
     function useColors() {
       return "colors" in exports2.inspectOpts ? Boolean(exports2.inspectOpts.colors) : tty.isatty(process.stderr.fd);
     }
-    exports2.formatters.o = function(v) {
-      this.inspectOpts.colors = this.useColors;
-      return util.inspect(v, this.inspectOpts).split("\n").map(function(str) {
-        return str.trim();
-      }).join(" ");
-    };
-    exports2.formatters.O = function(v) {
-      this.inspectOpts.colors = this.useColors;
-      return util.inspect(v, this.inspectOpts);
-    };
     function formatArgs(args) {
-      var name = this.namespace;
-      var useColors2 = this.useColors;
+      const { namespace: name, useColors: useColors2 } = this;
       if (useColors2) {
-        var c = this.color;
-        var colorCode = "[3" + (c < 8 ? c : "8;5;" + c);
-        var prefix = "  " + colorCode + ";1m" + name + " [0m";
+        const c = this.color;
+        const colorCode = "[3" + (c < 8 ? c : "8;5;" + c);
+        const prefix = `  ${colorCode};1m${name} [0m`;
         args[0] = prefix + args[0].split("\n").join("\n" + prefix);
-        args.push(colorCode + "m+" + exports2.humanize(this.diff) + "[0m");
+        args.push(colorCode + "m+" + module2.exports.humanize(this.diff) + "[0m");
       } else {
         args[0] = getDate() + name + " " + args[0];
       }
@@ -1303,18 +1349,17 @@ var require_node = __commonJS({
     function getDate() {
       if (exports2.inspectOpts.hideDate) {
         return "";
-      } else {
-        return new Date().toISOString() + " ";
       }
+      return new Date().toISOString() + " ";
     }
-    function log() {
-      return process.stderr.write(util.format.apply(util, arguments) + "\n");
+    function log(...args) {
+      return process.stderr.write(util.format(...args) + "\n");
     }
     function save(namespaces) {
-      if (namespaces == null) {
-        delete process.env.DEBUG;
-      } else {
+      if (namespaces) {
         process.env.DEBUG = namespaces;
+      } else {
+        delete process.env.DEBUG;
       }
     }
     function load() {
@@ -1322,19 +1367,28 @@ var require_node = __commonJS({
     }
     function init(debug) {
       debug.inspectOpts = {};
-      var keys = Object.keys(exports2.inspectOpts);
-      for (var i = 0; i < keys.length; i++) {
+      const keys = Object.keys(exports2.inspectOpts);
+      for (let i = 0; i < keys.length; i++) {
         debug.inspectOpts[keys[i]] = exports2.inspectOpts[keys[i]];
       }
     }
-    exports2.enable(load());
+    module2.exports = require_common()(exports2);
+    var { formatters } = module2.exports;
+    formatters.o = function(v) {
+      this.inspectOpts.colors = this.useColors;
+      return util.inspect(v, this.inspectOpts).split("\n").map((str) => str.trim()).join(" ");
+    };
+    formatters.O = function(v) {
+      this.inspectOpts.colors = this.useColors;
+      return util.inspect(v, this.inspectOpts);
+    };
   }
 });
 
-// ../../../../node_modules/debug/src/index.js
+// node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "../../../../node_modules/debug/src/index.js"(exports2, module2) {
-    if (typeof process === "undefined" || process.type === "renderer") {
+  "node_modules/debug/src/index.js"(exports2, module2) {
+    if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module2.exports = require_browser();
     } else {
       module2.exports = require_node();
@@ -1343,7 +1397,7 @@ var require_src = __commonJS({
 });
 
 // node_modules/follow-redirects/debug.js
-var require_debug2 = __commonJS({
+var require_debug = __commonJS({
   "node_modules/follow-redirects/debug.js"(exports2, module2) {
     var debug;
     module2.exports = function() {
@@ -1371,7 +1425,7 @@ var require_follow_redirects = __commonJS({
     var https = require("https");
     var Writable = require("stream").Writable;
     var assert = require("assert");
-    var debug = require_debug2();
+    var debug = require_debug();
     var events = ["abort", "aborted", "connect", "error", "socket", "timeout"];
     var eventHandlers = Object.create(null);
     events.forEach(function(event) {

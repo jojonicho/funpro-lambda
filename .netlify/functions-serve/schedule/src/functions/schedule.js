@@ -18,6 +18,13 @@ var __spreadValues = (a, b) => {
 };
 var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
 
+// config/headers.ts
+var headers = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Origin, Content-Type, X-Auth-Token",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTION"
+};
+
 // functions/schedule.ts
 var MINUTES_IN_A_DAY = 60 * 24;
 var findScheduleWithinOneHour = (schedules, timestamp) => {
@@ -39,18 +46,13 @@ exports.handler = async (event = {}) => {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
   const body = JSON.parse(event.body);
-  const schedule = body.schedule;
-  const timestamp = body.timestamp;
+  const { schedule, timestamp } = body;
   return {
     statusCode: 200,
     body: JSON.stringify({
       message: findScheduleWithinOneHour(schedule, timestamp)
     }),
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Origin, Content-Type, X-Auth-Token",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTION"
-    }
+    headers
   };
 };
 //# sourceMappingURL=schedule.js.map
