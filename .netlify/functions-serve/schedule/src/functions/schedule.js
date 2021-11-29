@@ -33,6 +33,7 @@ var findScheduleWithinOneHour = (schedules, timestamp) => {
   const day = now.getDay();
   const RANGE = 60;
   if (!schedules[day]) {
+    console.log("no schedule for today");
     return [];
   }
   return schedules[day].filter((schedule) => Math.abs(schedule.time_in_minutes - minutes) <= RANGE).map((schedule) => {

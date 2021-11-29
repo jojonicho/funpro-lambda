@@ -12,6 +12,7 @@ const findScheduleWithinOneHour = (schedules, timestamp) => {
 
   // key not in schedule
   if (!schedules[day]) {
+    console.log("no schedule for today");
     return [];
   }
 
