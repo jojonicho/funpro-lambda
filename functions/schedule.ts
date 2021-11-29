@@ -4,15 +4,10 @@ const MINUTES_IN_A_DAY = 60 * 24;
 // 11.40 -> 60*11 + 40
 // 19.00 -> 60*19
 
-const findScheduleWithinOneHour = (schedules, timestamp) => {
-  const now = new Date(timestamp);
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  const day = now.getDay();
+const findScheduleWithinOneHour = (schedules, day, minutes) => {
   const RANGE = 60; // 1 hour range
 
-  // key not in schedule
   if (!schedules[day]) {
-    console.log("no schedule for today");
     return [];
   }
 
@@ -33,12 +28,12 @@ exports.handler = async (event: any = {}): Promise<any> => {
   }
   // get post body
   const body = JSON.parse(event.body);
-  const { schedule, timestamp } = body;
+  const { schedule, day, minutes } = body;
 
   return {
     statusCode: 200,
     body: JSON.stringify({
-      message: findScheduleWithinOneHour(schedule, timestamp),
+      message: findScheduleWithinOneHour(schedule, day, minutes),
     }),
     headers,
   };

@@ -27,13 +27,9 @@ var headers = {
 
 // functions/schedule.ts
 var MINUTES_IN_A_DAY = 60 * 24;
-var findScheduleWithinOneHour = (schedules, timestamp) => {
-  const now = new Date(timestamp);
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  const day = now.getDay();
+var findScheduleWithinOneHour = (schedules, day, minutes) => {
   const RANGE = 60;
   if (!schedules[day]) {
-    console.log("no schedule for today");
     return [];
   }
   return schedules[day].filter((schedule) => Math.abs(schedule.time_in_minutes - minutes) <= RANGE).map((schedule) => {
@@ -47,11 +43,11 @@ exports.handler = async (event = {}) => {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
   const body = JSON.parse(event.body);
-  const { schedule, timestamp } = body;
+  const { schedule, day, minutes } = body;
   return {
     statusCode: 200,
     body: JSON.stringify({
-      message: findScheduleWithinOneHour(schedule, timestamp)
+      message: findScheduleWithinOneHour(schedule, day, minutes)
     }),
     headers
   };
