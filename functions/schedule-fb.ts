@@ -50,11 +50,11 @@ exports.handler = async (event: any = {}, ctx): Promise<any> => {
       headers,
     };
   }
-
+  const { email } = event.queryStringParameters;
   return {
     statusCode: 200,
     body: JSON.stringify({
-      message: await getFirestoreSchedules("jonathan.nicholas@ui.ac.id"),
+      message: await getFirestoreSchedules(email),
     }),
     headers,
   };
